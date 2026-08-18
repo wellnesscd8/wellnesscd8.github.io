@@ -1039,7 +1039,7 @@ async function exportAll() {
   var blob = new Blob([bundle(all)], {type:"application/json"});
   var url = URL.createObjectURL(blob);
   var a = document.createElement("a");
-  a.href=url; a.download="웰니스저널_기록_"+todayISO()+".json";
+  a.href=url; a.download="웰니스저널_복구용_"+todayISO()+".json";
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
   flash("saveStatus","백업 파일을 내려받았습니다 ✓ 다운로드 폴더를 확인해 보세요.");
@@ -1079,6 +1079,7 @@ function importAll(file) {
 // ══════════════════════════════════════════════════════════════
 var FS = { dir: null, name: "", supported: (typeof window.showDirectoryPicker === "function") };
 var BACKUP_NAME  = "웰니스저널_기록.json";        // 복구용 (사람이 읽는 용도가 아닙니다)
+var BACKUP_DIR   = "복구용 (열지 마세요)";          // 복구용 파일을 넣어 두는 하위 폴더
 var ALLTEXT_NAME = "웰니스저널_전체기록.txt";      // 사람이 읽는 전체 기록
 
 function bundle(entries) {
@@ -1106,7 +1107,9 @@ function paintFS() {
   $("fsPickBtn").style.border = on ? "1px solid #0f766e" : "none";
   $("fsWriteBtn").style.display = on ? "" : "none";
   $("fsClearBtn").style.display = on ? "" : "none";
-  if (on) $("fsDesc").innerHTML = '저장할 때마다 <b>' + FS.name + '</b> 폴더의 <b>' + BACKUP_NAME + '</b> 파일이 새로 쓰입니다. 이 파일 하나에 모든 날짜의 기록이 들어 있습니다.';
+  if (on) $("fsDesc").innerHTML = '저장할 때마다 <b>' + FS.name + '</b> 폴더에 파일이 쓰입니다.<br>' +
+    '읽으실 파일은 <b>날짜_웰니스저널.txt</b>(그날 하루치)와 <b>' + ALLTEXT_NAME + '</b>(전체)입니다.<br>' +
+    '<b>' + BACKUP_DIR + '</b> 폴더 안의 파일은 기록이 사라졌을 때 되살리는 용도라 열어도 코드 글자만 보입니다. 지우지만 마시고 그냥 두세요.';
 }
 
 async function fsPick() {
@@ -1147,8 +1150,10 @@ async function fsRestore() {
 }
 
 // 폴더에 파일 하나를 씁니다. 글 파일에는 BOM 을 붙여 윈도우 메모장에서도 한글이 깨지지 않게 합니다.
-async function fsPut(name, text, isText) {
-  var fh = await FS.dir.getFileHandle(name, { create: true });
+async function fsPut(name, text, isText, subdir) {
+  var dir = FS.dir;
+  if (subdir) dir = await FS.dir.getDirectoryHandle(subdir, { create: true });
+  var fh = await dir.getFileHandle(name, { create: true });
   var w = await fh.createWritable();
   await w.write(isText ? "\uFEFF" + text : text);
   await w.close();
@@ -1168,11 +1173,12 @@ async function fsWrite(quiet) {
     // ② 사람이 읽는 전체 기록
     await fsPut(ALLTEXT_NAME, buildAllText(all), true);
 
-    // ③ 복구용 데이터
-    await fsPut(BACKUP_NAME, bundle(all), false);
+    // ③ 복구용 데이터 — 하위 폴더에 따로 둡니다.
+    //    같은 자리에 두면 읽는 파일과 헷갈려 열어 보게 되고, 코드 글자만 잔뜩 나와 당황하게 됩니다.
+    await fsPut(BACKUP_NAME, bundle(all), false, BACKUP_DIR);
 
     await metaSet("fsLast", Date.now());
-    if (!quiet) fsSay("폴더에 저장했습니다 ✓ " + cur + "_웰니스저널.txt 를 열어 보세요 (총 " + all.length + "일)");
+    if (!quiet) fsSay("폴더에 저장했습니다 ✓ 읽으실 파일은 " + cur + "_웰니스저널.txt 입니다 (총 " + all.length + "일)");
     return true;
   } catch (e) {
     $("fsTag").className = "tag warn";
@@ -1204,7 +1210,7 @@ async function dlBackup(force) {
     var blob = new Blob([bundle(all)], { type: "application/json" });
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
-    a.href = url; a.download = "웰니스저널_기록_" + today + ".json";
+    a.href = url; a.download = "웰니스저널_복구용_" + today + ".json";
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
     await metaSet("dlLast", today);
