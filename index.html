@@ -129,6 +129,7 @@
   .foldnote { font-size:12px; font-weight:400; color:var(--faint); }
   .foldbody { padding:16px 14px 4px; background:var(--bg); }
   .foldbody .card { margin-bottom:14px; }
+  .ycard { background:#f7fbfa; border-color:#bfdfda; }
   .statusline { display:flex; flex-wrap:wrap; gap:4px 14px; margin:-6px 0 14px; min-height:2px; }
   .statusline .status { margin-left:0; }
   @media print { details.fold, .statusline, .savebar, .savehint, .dayline .daynote { display:none !important; } }
@@ -157,6 +158,13 @@
     <b>⚠ 지금 기록이 사라질 수 있는 상태입니다</b>
     <p>이 앱을 컴퓨터 파일로 직접 열고 계십니다. 이렇게 쓰면 브라우저가 기록을 임시 데이터로 취급해서, 청소·업데이트·설정 변경 때 한꺼번에 지워질 수 있습니다.
     맨 아래 <b>저장과 설정</b>에서 저장 폴더를 연결하시면 저장할 때마다 진짜 파일이 만들어지므로, 브라우저가 무슨 짓을 해도 기록이 남습니다.</p>
+  </div>
+
+  <!-- ⓪ 어제의 세 가지 (어제 계획이 있을 때만 나타납니다) -->
+  <div class="card ycard" id="ycard" style="display:none">
+    <div class="section-title"><span class="dia">◇</span> 어제의 세 가지 <span class="note" id="ydate"></span></div>
+    <div id="ylist"></div>
+    <div id="yrate" style="margin-top:12px;padding:10px 14px;background:#fff;border-radius:8px;font-size:13px;color:#374151;line-height:1.6"></div>
   </div>
 
   <!-- ① 오늘 한 문장 -->
@@ -229,12 +237,6 @@
   <details class="fold" id="moreFold">
     <summary>더 쓰기 <span class="foldnote">시간이 있는 날에만</span></summary>
     <div class="foldbody">
-
-      <div class="card" id="ycard" style="display:none">
-        <div class="section-title"><span class="dia">◇</span> 어제의 세 가지 <span class="note">어제 세운 계획, 실제로 어떻게 됐나요?</span></div>
-        <div id="ylist"></div>
-        <div id="yrate" style="margin-top:12px;padding:10px 14px;background:#f7f8fa;border-radius:8px;font-size:13px;color:#374151;line-height:1.6"></div>
-      </div>
 
       <div class="card">
         <div class="section-title"><span class="dia">◇</span> 오늘의 데이터</div>
@@ -581,11 +583,28 @@ function renderYesterdayRate() {
     '<span style="color:#6b7280">' + msg + '</span>';
 }
 async function renderYesterday(date) {
-  var prev = await dbGet(prevISO(date));
-  var plans = (prev && prev.tomorrow) ? prev.tomorrow : [];
+  // 바로 전날만 보지 않고, 오늘 이전에 쓴 저널 중 계획이 남아 있는 가장 최근 날을 찾습니다.
+  // 하루 이틀 건너뛰어도 계획과 점검이 끊기지 않습니다.
+  var all = await dbAll();
+  var cands = all.filter(function(e){
+    return e.date < date && e.tomorrow && e.tomorrow.filter(Boolean).length > 0;
+  });
+  cands.sort(function(a, b){ return a.date < b.date ? 1 : -1; });
+  var prev = cands[0] || null;
+
+  var plans = prev ? prev.tomorrow : [];
   var has = plans.filter(Boolean).length > 0;
   if (!has) { $("ycard").style.display = "none"; return; }
   $("ycard").style.display = "block";
+
+  var lbl = $("ydate");
+  if (lbl) {
+    var pd = new Date(prev.date + "T00:00:00");
+    var gap = Math.round((new Date(date + "T00:00:00") - pd) / 86400000);
+    lbl.textContent = (gap === 1)
+      ? "어제 세운 계획, 실제로 어떻게 됐나요?"
+      : (pd.getMonth() + 1) + "월 " + pd.getDate() + "일에 세운 계획입니다 (" + gap + "일 전)";
+  }
 
   $("ylist").innerHTML = plans.map(function(t, i) {
     if (!t) return "";
