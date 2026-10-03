@@ -55,7 +55,7 @@
   input[type=range] { width: 100%; }
   .pillar input[type=text] { margin-top: 8px; font-size: 13px; padding: 6px 9px; }
   .total { margin-top: 18px; padding: 16px 20px; border-radius: 12px; background: linear-gradient(135deg,#1e3a8a,#0f766e); color: #fff; display: flex; align-items: center; justify-content: space-between; }
-  .total .big { font-size: 36px; font-weight: 800; }
+  .total .big { font-size: 36px; font-weight: 800; white-space: nowrap; }
   .total .big span { font-size: 18px; opacity: 0.8; }
   .tomorrow-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
   .tomorrow-row .num { font-weight: 700; color: var(--faint); font-size: 14px; width: 18px; }
@@ -116,8 +116,6 @@
   .savehint { font-size:12px; color:var(--faint); margin:-4px 0 22px; line-height:1.7; }
   .cmtog { display:inline-flex; align-items:center; gap:7px; font-size:12.5px;
     color:var(--muted); margin-top:14px; cursor:pointer; }
-  .pillar input[type=text] { display:none; }
-  body.showcm .pillar input[type=text] { display:block; }
   details.fold { background:#fff; border:1px solid var(--line); border-radius:14px;
     margin-bottom:14px; overflow:hidden; }
   details.fold > summary { list-style:none; cursor:pointer; padding:15px 20px;
@@ -133,6 +131,35 @@
   .statusline { display:flex; flex-wrap:wrap; gap:4px 14px; margin:-6px 0 14px; min-height:2px; }
   .statusline .status { margin-left:0; }
   @media print { details.fold, .statusline, .savebar, .savehint, .dayline .daynote { display:none !important; } }
+
+  /* ── 팔각형 8기둥 · 오늘의 세 기둥 ── */
+  .radar { width:100%; max-width:340px; display:block; margin:0 auto; touch-action:none;
+    user-select:none; -webkit-user-select:none; cursor:pointer; }
+  .radar text { font-family:inherit; }
+  .rhint { text-align:center; font-size:12px; color:var(--muted); margin:2px 0 12px; }
+  .prow-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .prow { display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:10px; padding:6px 6px 6px 10px; min-width:0; }
+  .prow .nm { font-weight:700; font-size:14px; flex:1; min-width:0; }
+  .prow .sv { font-weight:800; font-size:16px; width:24px; text-align:center; font-variant-numeric:tabular-nums; }
+  .prow .sv.empty { color:var(--faint); font-weight:500; }
+  .pm { width:32px; height:32px; border-radius:8px; border:0; background:#f3f4f6; color:#374151;
+    font-size:17px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .pm:focus-visible, .pchip:focus-visible { outline:2px solid #0f766e; outline-offset:2px; }
+  .three { margin-top:18px; padding-top:16px; border-top:1px dashed var(--line); }
+  .three-title { font-size:14px; font-weight:700; margin-bottom:4px; }
+  .three-note { font-size:12px; color:var(--faint); margin:0 0 10px; }
+  .pchips { display:flex; flex-wrap:wrap; gap:8px; }
+  .pchip { border:1.5px solid var(--line); background:#fff; color:#374151; border-radius:999px;
+    padding:6px 14px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; }
+  .pchip[aria-pressed="true"] { color:#fff; }
+  .pchip:disabled { opacity:.4; cursor:default; }
+  .picked { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+  .pk { display:flex; align-items:center; gap:8px; }
+  .pk .ptag { flex:0 0 auto; font-size:13px; font-weight:700; padding:4px 9px; border-radius:8px; }
+  .pk input { flex:1; min-width:0; }
+  .pcount { font-size:12px; color:var(--muted); margin-top:8px; }
+  .gline { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .gline .num { font-weight:700; color:var(--faint); font-size:14px; width:18px; }
 </style>
 </head>
 <body>
@@ -144,13 +171,13 @@
     </div>
     <div class="datebar">
       <input type="date" id="dateInput">
-      <button class="btn" style="background:#f3f4f6;color:#374151" id="todayBtn">오늘</button>
+      <button class="btn" style="background:#f3f4f6;color:#374151;white-space:nowrap" id="todayBtn">오늘</button>
     </div>
   </div>
 
   <div class="dayline">
     <span class="daybadge">Day <input type="text" id="day" placeholder="1"> / 100</span>
-    <span class="daynote">다섯 칸만 채우면 오늘 몫은 끝입니다. 더 쓰고 싶은 날은 아래를 펼치세요.</span>
+    <span class="daynote">여섯 칸을 채우면 오늘 몫은 끝입니다.</span>
   </div>
 
   <!-- 위험 경고 (파일로 직접 열었을 때만 나타납니다) -->
@@ -160,9 +187,9 @@
     맨 아래 <b>저장과 설정</b>에서 저장 폴더를 연결하시면 저장할 때마다 진짜 파일이 만들어지므로, 브라우저가 무슨 짓을 해도 기록이 남습니다.</p>
   </div>
 
-  <!-- ⓪ 어제의 세 가지 (어제 계획이 있을 때만 나타납니다) -->
+  <!-- ⓪ 어제의 빅3 (어제 계획이 있을 때만 나타납니다) -->
   <div class="card ycard" id="ycard" style="display:none">
-    <div class="section-title"><span class="dia">◇</span> 어제의 세 가지 <span class="note" id="ydate"></span></div>
+    <div class="section-title"><span class="dia">◇</span> 어제의 빅3 <span class="note" id="ydate"></span></div>
     <div id="ylist"></div>
     <div id="yrate" style="margin-top:12px;padding:10px 14px;background:#fff;border-radius:8px;font-size:13px;color:#374151;line-height:1.6"></div>
   </div>
@@ -175,47 +202,56 @@
 
   <!-- ② 여덟 기둥 -->
   <div class="card">
-    <div class="section-title"><span class="step">2</span> 여덟 기둥 점수 <span class="note">0~10점, 느낌대로</span></div>
-    <div class="pillars" id="pillars"></div>
-    <label class="tog cmtog"><input type="checkbox" id="cmToggle"> 기둥마다 한 줄 코멘트도 쓰기</label>
+    <div class="section-title"><span class="step">2</span> 여덟 기둥 점수 <span class="note">1~10점, 느낌대로</span></div>
+    <svg class="radar" id="radar" viewBox="-170 -170 340 340" role="img" aria-label="여덟 기둥 점수 팔각형"></svg>
+    <p class="rhint">기둥 쪽을 누르거나 끌어서 점수를 정하세요. 바깥일수록 높은 점수입니다.</p>
+    <div class="prow-grid" id="pillars"></div>
+
+    <div class="three">
+      <div class="three-title">오늘의 세 기둥</div>
+      <p class="three-note">오늘 특별히 실천했거나 놓친 기둥 셋을 골라 짧게 적어 보세요.</p>
+      <div class="pchips" id="pchips"></div>
+      <div class="picked" id="picked"></div>
+      <div class="pcount" id="pcount"></div>
+    </div>
+
     <div class="total">
       <div>
-        <div style="font-size:13px;opacity:0.85">총점 (8기둥 합계 + 저널 작성 보너스 20)</div>
-        <div style="font-size:11px;opacity:0.7;margin-top:2px">자동 계산</div>
+        <div style="font-size:14px;font-weight:700">오늘의 총점</div>
+        <div style="font-size:11.5px;opacity:0.8;margin-top:2px" id="sumNote">8기둥 합계 0 / 80</div>
+        <div style="font-size:11.5px;opacity:0.8">+ 저널 작성 보너스 20</div>
       </div>
       <div class="big"><span id="totalNum">20</span><span> / 100</span></div>
     </div>
   </div>
 
-  <!-- ③ 감정 -->
+  <!-- ③ 오늘의 데이터 -->
   <div class="card">
-    <div class="section-title"><span class="step">3</span> 오늘의 감정 <span class="note">이름을 붙이면 편도체가 가라앉습니다</span></div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-      <div style="flex:0 0 170px;min-width:150px">
-        <label class="fld">가장 강했던 감정 하나</label>
-        <input type="text" id="emotion" list="emolist" placeholder="예: 조급함">
-        <datalist id="emolist">
-          <option value="기쁨"><option value="감사"><option value="평온"><option value="설렘"><option value="뿌듯함"><option value="충만함">
-          <option value="조급함"><option value="불안"><option value="답답함"><option value="서운함"><option value="짜증"><option value="분노">
-          <option value="외로움"><option value="허전함"><option value="무기력"><option value="슬픔"><option value="죄책감"><option value="두려움">
-        </datalist>
-      </div>
-      <div style="flex:1;min-width:220px">
-        <label class="fld">그 감정은 어디서 왔나요?</label>
-        <input type="text" id="emotionSource" placeholder="상황 때문이었나요, 나 자신 때문이었나요?">
-      </div>
+    <div class="section-title"><span class="step">3</span> 오늘의 데이터</div>
+    <div class="grid3">
+      <div><label class="fld" for="weather">날씨 &amp; 기온</label><input type="text" id="weather" placeholder="맑음 / 24℃"></div>
+      <div><label class="fld" for="weight">체중 (kg)</label><input type="number" id="weight" inputmode="decimal" placeholder="00.0"></div>
+      <div><label class="fld" for="steps">걸음수 (보)</label><input type="number" id="steps" inputmode="numeric" placeholder="0000"></div>
     </div>
   </div>
 
-  <!-- ④ 감사 -->
+  <!-- ④ 감사 세 가지 -->
   <div class="card">
-    <div class="section-title"><span class="step">4</span> 오늘의 감사 <span class="note">작아도 괜찮습니다</span></div>
-    <textarea id="gratitude" placeholder="오늘 고마웠던 것 한 가지"></textarea>
+    <div class="section-title"><span class="step">4</span> 오늘의 감사 세 가지 <span class="note">작아도 괜찮습니다</span></div>
+    <div class="gline"><span class="num">1</span><input type="text" id="g0" placeholder="오늘 고마웠던 첫 번째"></div>
+    <div class="gline"><span class="num">2</span><input type="text" id="g1" placeholder="오늘 고마웠던 두 번째"></div>
+    <div class="gline"><span class="num">3</span><input type="text" id="g2" placeholder="오늘 고마웠던 세 번째"></div>
   </div>
 
-  <!-- ⑤ 내일 계획 -->
+  <!-- ⑤ 활동과 깨달음 -->
   <div class="card">
-    <div class="section-title"><span class="step">5</span> 내일의 세 가지</div>
+    <div class="section-title"><span class="step">5</span> 활동과 깨달음 <span class="note">오늘 한 일, 그리고 거기서 얻은 것</span></div>
+    <textarea id="activities" placeholder="- 오전 루틴 후 아내와 견과류를 갈아 먹으며 대화&#10;- 깨달음: 눈을 마주치며 얘기하니 정이 느껴졌다"></textarea>
+  </div>
+
+  <!-- ⑥ 내일의 빅3 -->
+  <div class="card">
+    <div class="section-title"><span class="step">6</span> 내일의 빅3</div>
     <div class="tomorrow-row"><span class="num">1</span><input type="text" id="t0" placeholder="내일의 첫 번째 일"></div>
     <div class="tomorrow-row"><span class="num">2</span><input type="text" id="t1" placeholder="내일의 두 번째 일"></div>
     <div class="tomorrow-row"><span class="num">3</span><input type="text" id="t2" placeholder="내일의 세 번째 일"></div>
@@ -231,52 +267,7 @@
     <span class="status" id="copyStatus" style="color:#6366f1"></span>
   </div>
   <p class="savehint"><b>내 기록 복사하기</b>는 오늘 저널을 글로 복사합니다. 구글 문서나 AI 대화창에 그대로 붙여 넣으세요.
-  <b>저장하기</b>는 이 기기에 보관하고, 연결된 폴더가 있으면 <b>읽을 수 있는 글 파일</b>까지 함께 씁니다.</p>
-
-  <!-- ══ 더 쓰기 ══ -->
-  <details class="fold" id="moreFold">
-    <summary>더 쓰기 <span class="foldnote">시간이 있는 날에만</span></summary>
-    <div class="foldbody">
-
-      <div class="card">
-        <div class="section-title"><span class="dia">◇</span> 오늘의 데이터</div>
-        <div class="grid3">
-          <div><label class="fld">날씨 &amp; 기온</label><input type="text" id="weather" placeholder="맑음 / 24℃"></div>
-          <div><label class="fld">체중 (kg)</label><input type="number" id="weight" placeholder="00.0"></div>
-          <div><label class="fld">걸음수 (보)</label><input type="number" id="steps" placeholder="0000"></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="section-title"><span class="dia">◇</span> 활동과 경험 <span class="note">내가 주도적으로 실천한 것들과 오늘이 선물한 경험</span></div>
-        <textarea id="activities"></textarea>
-      </div>
-
-      <div class="card">
-        <div class="section-title"><span class="dia">◇</span> 오늘의 멈춤 <span class="note">반응하기 전에 한 번 멈추면, 그 사이에 판단이 들어옵니다</span></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-          <div style="flex:0 0 170px;min-width:150px">
-            <label class="fld">오늘 나는 몇 번 멈추었는가?</label>
-            <input type="number" id="pauseCount" min="0" max="99" step="1" placeholder="0">
-          </div>
-          <div style="flex:1;min-width:220px">
-            <label class="fld">가장 기억에 남는 멈춤 하나</label>
-            <input type="text" id="pauseNote" placeholder="어떤 순간이었나요?">
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="section-title"><span class="dia">◇</span> 백지 한 줄 <span class="note">아무것도 보지 않고 쓰세요</span></div>
-        <p style="font-size:12px;color:var(--faint);margin:-6px 0 10px;line-height:1.6">
-          오늘 배우거나 읽거나 들은 것 하나를, 자료를 <b style="color:var(--muted)">덮은 채</b> 한 문장으로 적어 보세요.
-          손이 멈추는 그 자리가, 아직 내 것이 되지 않은 자리입니다.
-        </p>
-        <input type="text" id="blankRecall" placeholder="예: 유창성 착각 — 매끄럽게 읽히는 느낌은 앎이 아니라 익숙함이다">
-      </div>
-
-    </div>
-  </details>
+  <b>저장하기</b>는 이 기기에 보관합니다. 휴대폰에서는 이어서 <b>공유하기 창</b>이 열리니 구글 드라이브·메모·카카오톡 나와의 채팅 중 보관할 곳을 고르세요. 컴퓨터에 폴더를 연결해 두었다면 그 폴더에 <b>읽을 수 있는 글 파일</b>도 함께 씁니다.</p>
 
   <!-- ══ 돌아보기 ══ -->
   <details class="fold" id="reviewFold">
@@ -284,7 +275,7 @@
     <div class="foldbody">
 
       <div class="card" id="statsCard" style="display:none">
-        <div class="section-title"><span class="dia">◇</span> 주간 통계 <span class="note">8기둥 평균 · 계획 실행률 · 감정 지도</span></div>
+        <div class="section-title"><span class="dia">◇</span> 주간 통계 <span class="note">8기둥 평균 · 계획 실행률</span></div>
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
           <button class="btn" id="weekPrev" style="background:#f3f4f6;color:#374151;padding:6px 12px">◀ 지난 주</button>
           <span id="weekLabel" style="font-size:14px;font-weight:700;color:var(--ink)"></span>
@@ -474,80 +465,201 @@ function todayISO() {
 }
 function $(id){ return document.getElementById(id); }
 
-// ── 8기둥 UI 생성 ──
-var scores = {}, comments = {};
+// ── 8기둥 UI 생성 (팔각형 · 1~10점) ──
+// 점수 0 은 "아직 매기지 않음"을 뜻합니다. 화면과 글에는 "–"로 나타납니다.
+var scores = {}, comments = {}, picks = [], picksTouched = false, current = null;
+function pid(i){ return PILLARS[i].key + "_" + i; }
+
+var RADAR = { R:120, NS:"http://www.w3.org/2000/svg", poly:null, dots:[], lbls:[], lock:null };
+function rAng(i){ return -Math.PI/2 + i*Math.PI/4; }
+function rPt(i, v){ var r = RADAR.R*v/10, a = rAng(i); return [r*Math.cos(a), r*Math.sin(a)]; }
+function rEl(tag, attrs, parent){
+  var e = document.createElementNS(RADAR.NS, tag);
+  for (var k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function buildRadar() {
+  var svg = $("radar");
+  [2,4,6,8,10].forEach(function(v){
+    rEl("polygon", { points: PILLARS.map(function(_,i){ return rPt(i,v).join(","); }).join(" "),
+      fill:"none", stroke:"#e5e7eb", "stroke-width": v===10 ? 1.5 : 1 }, svg);
+  });
+  PILLARS.forEach(function(_,i){
+    var e = rPt(i,10);
+    rEl("line", { x1:0, y1:0, x2:e[0], y2:e[1], stroke:"#e5e7eb", "stroke-width":1 }, svg);
+  });
+  RADAR.poly = rEl("polygon", { fill:"rgba(15,118,110,0.15)", stroke:"#0f766e", "stroke-width":2, "stroke-linejoin":"round" }, svg);
+  PILLARS.forEach(function(p,i){
+    var col = DOMAIN[p.d];
+    RADAR.dots[i] = rEl("circle", { r:6, fill:col.base, stroke:"#fff", "stroke-width":2 }, svg);
+    var l = rPt(i, 12.4);
+    var t1 = rEl("text", { x:l[0], y:l[1]-3, "text-anchor":"middle", "font-size":14, "font-weight":700, fill:col.text }, svg);
+    t1.textContent = p.ko;
+    RADAR.lbls[i] = rEl("text", { x:l[0], y:l[1]+14, "text-anchor":"middle", "font-size":13, "font-weight":800, fill:col.base }, svg);
+  });
+
+  function svgPoint(ev){
+    var r = svg.getBoundingClientRect();
+    return [ (ev.clientX - r.left)/r.width*340 - 170, (ev.clientY - r.top)/r.height*340 - 170 ];
+  }
+  function setFrom(ev){
+    var q = svgPoint(ev), i = RADAR.lock, a = rAng(i);
+    var v = Math.round((q[0]*Math.cos(a) + q[1]*Math.sin(a)) / RADAR.R * 10);
+    v = Math.max(1, Math.min(10, v));
+    if (scores[pid(i)] !== v) { scores[pid(i)] = v; paintScores(); }
+  }
+  svg.addEventListener("pointerdown", function(ev){
+    var q = svgPoint(ev);
+    if (Math.hypot(q[0], q[1]) < 8) return;
+    var a = Math.atan2(q[1], q[0]) + Math.PI/2; if (a < 0) a += 2*Math.PI;
+    RADAR.lock = Math.round(a/(Math.PI/4)) % 8;
+    try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
+    setFrom(ev);
+  });
+  svg.addEventListener("pointermove", function(ev){ if (RADAR.lock !== null) setFrom(ev); });
+  svg.addEventListener("pointerup", function(){ RADAR.lock = null; });
+  svg.addEventListener("pointercancel", function(){ RADAR.lock = null; });
+}
+
 function buildPillars() {
+  buildRadar();
   var c = $("pillars");
   PILLARS.forEach(function(p, i) {
-    var col = DOMAIN[p.d];
-    var id = p.key + "_" + i;
+    var col = DOMAIN[p.d], id = pid(i);
     scores[id] = 0; comments[id] = "";
-    var div = document.createElement("div");
-    div.className = "pillar";
-    div.style.borderColor = col.soft;
-    div.innerHTML =
-      '<div class="pillar-top">' +
-        '<span class="badge" style="background:'+col.base+'">'+p.abbr+'</span>' +
-        '<span class="pillar-name" style="color:'+col.text+'">'+p.ko+' <span class="pillar-en">'+p.en+'</span></span>' +
-        '<span class="pillar-score" id="sc_'+id+'" style="color:'+col.base+'">0</span>' +
-      '</div>' +
-      '<p class="pillar-hint">'+p.hint+'</p>' +
-      '<input type="range" min="0" max="10" value="0" id="rng_'+id+'" style="accent-color:'+col.base+'">' +
-      '<input type="text" id="cm_'+id+'" placeholder="간단 코멘트">';
-    c.appendChild(div);
-    $("rng_"+id).addEventListener("input", function(e){
-      scores[id] = Number(e.target.value);
-      $("sc_"+id).textContent = e.target.value;
-      updateTotal();
-    });
-    $("cm_"+id).addEventListener("input", function(e){ comments[id] = e.target.value; });
+    var row = document.createElement("div");
+    row.className = "prow"; row.style.borderColor = col.soft;
+    row.title = p.hint;
+    row.innerHTML =
+      '<span class="nm" style="color:'+col.text+'">'+p.ko+'</span>' +
+      '<button class="pm" type="button" id="mn_'+id+'" aria-label="'+p.ko+' 1점 내리기">−</button>' +
+      '<span class="sv" id="sc_'+id+'" style="color:'+col.base+'"></span>' +
+      '<button class="pm" type="button" id="pl_'+id+'" aria-label="'+p.ko+' 1점 올리기">+</button>';
+    c.appendChild(row);
+    $("mn_"+id).onclick = function(){ scores[id] = scores[id] ? Math.max(1, scores[id]-1) : 1; paintScores(); };
+    $("pl_"+id).onclick = function(){ scores[id] = scores[id] ? Math.min(10, scores[id]+1) : 1; paintScores(); };
   });
+}
+function paintScores() {
+  RADAR.poly.setAttribute("points", PILLARS.map(function(_,i){ return rPt(i, scores[pid(i)]||0).join(","); }).join(" "));
+  PILLARS.forEach(function(p,i){
+    var v = scores[pid(i)] || 0, q = rPt(i, v);
+    RADAR.dots[i].setAttribute("cx", q[0]); RADAR.dots[i].setAttribute("cy", q[1]);
+    RADAR.dots[i].setAttribute("opacity", v ? 1 : 0);
+    RADAR.lbls[i].textContent = v ? v : "–";
+    var sv = $("sc_"+pid(i));
+    sv.textContent = v ? v : "–";
+    sv.classList.toggle("empty", !v);
+  });
+  $("radar").setAttribute("aria-label", "여덟 기둥 점수: " +
+    PILLARS.map(function(p,i){ return p.ko + " " + (scores[pid(i)] || "없음"); }).join(", "));
+  updateTotal();
 }
 function updateTotal() {
   var sum = 0;
-  for (var k in scores) sum += scores[k];
+  for (var k in scores) sum += Number(scores[k]) || 0;
   $("totalNum").textContent = Math.min(100, sum + 20);
+  $("sumNote").textContent = "8기둥 합계 " + sum + " / 80";
+}
+
+// 오늘의 세 기둥 — 고르는 칩과 코멘트 칸
+function paintPicks() {
+  var box = $("pchips"); box.innerHTML = "";
+  PILLARS.forEach(function(p,i){
+    var col = DOMAIN[p.d], id = pid(i), on = picks.indexOf(id) > -1;
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "pchip"; b.textContent = p.ko;
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+    if (on) { b.style.background = col.base; b.style.borderColor = col.base; }
+    b.disabled = !on && picks.length >= 3;
+    b.onclick = function(){
+      var k = picks.indexOf(id);
+      if (k > -1) picks.splice(k, 1); else if (picks.length < 3) picks.push(id);
+      picksTouched = true;
+      paintPicks();
+      if (k === -1) { var inp = $("cm_"+id); if (inp) inp.focus(); }
+    };
+    box.appendChild(b);
+  });
+  var list = $("picked"); list.innerHTML = "";
+  picks.forEach(function(id){
+    var i = Number(id.split("_")[1]), p = PILLARS[i], col = DOMAIN[p.d];
+    var r = document.createElement("div");
+    r.className = "pk";
+    r.innerHTML = '<span class="ptag" style="background:'+col.soft+';color:'+col.text+'">'+p.ko+'</span>' +
+      '<input type="text" id="cm_'+id+'" placeholder="'+p.ko+'에 대해 짧게 한 줄" aria-label="'+p.ko+' 코멘트">';
+    list.appendChild(r);
+    var inp = $("cm_"+id); inp.value = comments[id] || "";
+    inp.oninput = function(){ comments[id] = inp.value; };
+  });
+  $("pcount").textContent = picks.length < 3
+    ? "기둥을 " + (3 - picks.length) + "개 더 고를 수 있습니다."
+    : "세 기둥을 모두 골랐습니다. 바꾸려면 고른 기둥을 다시 누르세요.";
+}
+
+// 예전 '오늘의 감사' 한 칸짜리 글을 세 칸으로 나눕니다.
+function splitGratitude(text) {
+  var lines = String(text || "").split(/\n+/).map(function(t){ return t.replace(/^\s*[-·•*\d.)]+\s*/, "").trim(); }).filter(Boolean);
+  if (lines.length > 3) lines = [lines[0], lines[1], lines.slice(2).join(" / ")];
+  while (lines.length < 3) lines.push("");
+  return lines;
 }
 
 // ── 폼 ↔ 데이터 ──
+// 예전에 쓰던 항목(감정·멈춤·백지 한 줄 등)은 화면에서 빠졌지만,
+// 지난 기록을 다시 저장해도 지워지지 않도록 그대로 함께 보관합니다.
 function collect() {
-  return {
+  var g = [$("g0").value, $("g1").value, $("g2").value];
+  var cm = {};
+  for (var k in comments) if (picks.indexOf(k) > -1 && comments[k]) cm[k] = comments[k];
+  if (current && !current.picks && current.comments) {
+    // 예전 형식 기록: 여덟 기둥 코멘트를 그대로 지킵니다.
+    for (var j in current.comments) if (!(j in cm) && current.comments[j]) cm[j] = current.comments[j];
+  }
+  return Object.assign({}, current || {}, {
     date: $("dateInput").value || todayISO(),
     weather: $("weather").value, weight: $("weight").value, steps: $("steps").value, day: $("day").value,
     theme: $("theme").value,
-    scores: Object.assign({}, scores), comments: Object.assign({}, comments),
-    activities: $("activities").value, gratitude: $("gratitude").value,
+    scores: Object.assign({}, scores),
+    // 예전 형식 기록은 세 기둥을 새로 고르지 않는 한 여덟 기둥 코멘트 형식을 그대로 유지합니다.
+    picks: (current && !Array.isArray(current.picks) && !picksTouched) ? undefined : picks.slice(),
+    comments: cm,
+    activities: $("activities").value,
+    gratitudes: g,
+    gratitude: g.filter(function(t){ return t.trim(); }).join("\n"),
     tomorrow: [$("t0").value, $("t1").value, $("t2").value],
-    // ── 신설 (점수에는 반영하지 않음) ──
     yesterdayCheck: ycheck.slice(),
-    emotion: $("emotion").value,
-    emotionSource: $("emotionSource").value,
-    pauseCount: $("pauseCount").value,
-    pauseNote: $("pauseNote").value,
-    blankRecall: $("blankRecall").value,
     updatedAt: Date.now()
-  };
+  });
 }
 function fill(e) {
+  current = e && e.updatedAt ? e : null;
   $("weather").value=e.weather||""; $("weight").value=e.weight||""; $("steps").value=e.steps||""; $("day").value=e.day||"";
-  $("theme").value=e.theme||""; $("activities").value=e.activities||""; $("gratitude").value=e.gratitude||"";
+  $("theme").value=e.theme||""; $("activities").value=e.activities||"";
+  var g = (e.gratitudes && e.gratitudes.length) ? e.gratitudes : splitGratitude(e.gratitude);
+  $("g0").value=g[0]||""; $("g1").value=g[1]||""; $("g2").value=g[2]||"";
   $("t0").value=(e.tomorrow&&e.tomorrow[0])||""; $("t1").value=(e.tomorrow&&e.tomorrow[1])||""; $("t2").value=(e.tomorrow&&e.tomorrow[2])||"";
-  $("emotion").value=e.emotion||""; $("emotionSource").value=e.emotionSource||"";
-  $("pauseCount").value=e.pauseCount||""; $("pauseNote").value=e.pauseNote||"";
-  $("blankRecall").value=e.blankRecall||"";
   ycheck = (e.yesterdayCheck && e.yesterdayCheck.length===3) ? e.yesterdayCheck.slice() : ["","",""];
+  comments = {};
   PILLARS.forEach(function(p,i){
-    var id=p.key+"_"+i;
-    var sv=(e.scores&&e.scores[id]!=null)?e.scores[id]:0;
-    var cv=(e.comments&&e.comments[id])||"";
-    scores[id]=sv; comments[id]=cv;
-    $("rng_"+id).value=sv; $("sc_"+id).textContent=sv; $("cm_"+id).value=cv;
+    var id = pid(i);
+    var sv = (e.scores && e.scores[id] != null) ? Number(e.scores[id]) || 0 : 0;
+    scores[id] = Math.max(0, Math.min(10, sv));
+    comments[id] = (e.comments && e.comments[id]) || "";
   });
-  updateTotal();
+  picksTouched = false;
+  if (Array.isArray(e.picks)) picks = e.picks.slice(0, 3);
+  else {
+    // 예전 형식: 코멘트가 있는 기둥 중 앞의 셋을 골라 둡니다. (나머지 코멘트도 보관됩니다)
+    picks = [];
+    PILLARS.forEach(function(p,i){ if (picks.length < 3 && comments[pid(i)]) picks.push(pid(i)); });
+  }
+  paintScores();
+  paintPicks();
 }
 function blankFill(date) {
-  fill({ date:date, tomorrow:["","",""], scores:{}, comments:{},
-         yesterdayCheck:["","",""], emotion:"", emotionSource:"", pauseCount:"", pauseNote:"", blankRecall:"" });
+  fill({ date:date, tomorrow:["","",""], scores:{}, comments:{}, picks:[], gratitudes:["","",""], yesterdayCheck:["","",""] });
 }
 
 // ── ⓪ 어제의 세 가지 (계획-실행 고리 닫기) ──
@@ -639,8 +751,34 @@ async function loadDate(date) {
   if (e) fill(e); else blankFill(date);
   await renderYesterday(date);
 }
+// 휴대폰에서는 저장 뒤 공유하기 창을 엽니다 (구글 드라이브 · 메모 · 카카오톡 나와의 채팅 등).
+// 컴퓨터에 폴더를 연결해 두었다면 그 폴더 저장으로 충분하므로 공유하기 창을 띄우지 않습니다.
+function wantShare() {
+  if (!navigator.share) return false;
+  if (FS.dir) return false;
+  var touch = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  return !!touch;
+}
+function shareEntry(e) {
+  var text = entryToText(e, true);
+  var name = e.date + "_웰니스저널.txt";
+  var data = { title: "웰니스 저널 " + e.date, text: text };
+  try {
+    var file = new File(["\uFEFF" + text], name, { type: "text/plain" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) data = { title: data.title, files: [file] };
+  } catch (err) {}
+  return navigator.share(data).then(function(){ return "shared"; }, function(err){
+    if (err && err.name === "AbortError") return "cancel";
+    // 파일 공유가 막히면 글로 다시 시도합니다.
+    if (data.files) return navigator.share({ title: data.title, text: text }).then(function(){ return "shared"; }, function(){ return "fail"; });
+    return "fail";
+  });
+}
 async function save() {
   var e = collect();
+  // 공유하기 창은 버튼을 누른 직후에 열어야 휴대폰이 막지 않습니다.
+  var sharing = wantShare() ? shareEntry(e) : null;
+  current = e;
   await dbPut(e);
   await refreshHistory();
   await renderStats();
@@ -649,6 +787,13 @@ async function save() {
   var where = ["이 기기"];
   if (await fsWrite(true)) where.push(FS.name + " 폴더");
   flash("saveStatus", "저장되었습니다 ✓ (" + where.join(" · ") + ")");
+  if (sharing) {
+    sharing.then(function(r){
+      if (r === "shared") flash("saveStatus", "저장되었습니다 ✓ 고르신 곳에도 오늘 저널을 보냈습니다.");
+      else if (r === "cancel") flash("saveStatus", "이 기기에 저장되었습니다 ✓ (공유는 취소하셨습니다)");
+      else flash("saveStatus", "이 기기에 저장되었습니다 ✓ 공유하기 창을 열지 못했으니 '내 기록 복사하기'로 보관해 주세요.");
+    });
+  }
 
   await dlBackup(false);
   schedulePush();
@@ -680,53 +825,85 @@ function _dayName(iso) {
 }
 
 // 기록 하나를 사람이 읽는 글로 바꿉니다.
-// 화면에서 쓰던 형식을 그대로 지켜, 지금까지 모아 두신 구글 문서와 모양이 어긋나지 않게 했습니다.
+// 비어 있는 칸은 아예 적지 않습니다. 복사하거나 저장한 글에 빈칸이 남지 않게 하기 위해서입니다.
+// 예전 형식으로 쓴 기록(감정·멈춤·백지 한 줄 등)은 그 내용이 있을 때만 그대로 함께 적습니다.
+function entryGratitudes(e) {
+  var g = (e.gratitudes && e.gratitudes.length) ? e.gratitudes : splitGratitude(e.gratitude);
+  return g.map(function(t){ return String(t || "").trim(); }).filter(Boolean);
+}
+function entryTotal(e) {
+  var t = 20;
+  if (e.scores) for (var k in e.scores) t += Number(e.scores[k]) || 0;
+  return Math.min(100, t);
+}
 function entryToText(e, withTitle) {
-  var lines = PILLARS.map(function(p,i){
-    var id = p.key+"_"+i;
-    var sv = (e.scores && e.scores[id] != null) ? e.scores[id] : 0;
-    var cv = (e.comments && e.comments[id]) || "(코멘트 없음)";
-    return p.ko+"("+p.en+"): "+sv+"/10 — "+cv;
-  }).join("\n");
+  var out = [];
+  var sc = function(i){ var v = e.scores && Number(e.scores[pid(i)]); return v ? v : "–"; };
+  var sum = 0; PILLARS.forEach(function(p,i){ sum += (e.scores && Number(e.scores[pid(i)])) || 0; });
 
-  var total = 20;
-  if (e.scores) for (var k in e.scores) total += e.scores[k];
-  total = Math.min(100, total);
+  if (withTitle) {
+    var dn = _dayName(e.date);
+    out.push("웰니스 저널 100" + (e.day ? "  ·  Day " + e.day : "") + "\n" +
+             e.date + (dn ? " (" + dn + ")" : "") + "\n" +
+             "──────────────────────────────");
+  }
 
-  var YLAB = { done:"○ 했다", part:"△ 조금", miss:"✗ 못했다", "":"(미점검)" };
+  var head = "날짜: " + e.date;
+  if (e.theme) head += "\n오늘을 한 문장으로: " + e.theme;
+  out.push(head);
+
+  var data = [];
+  if (e.weather) data.push("날씨: " + e.weather);
+  if (e.weight)  data.push("체중: " + e.weight + "kg");
+  if (e.steps)   data.push("걸음수: " + e.steps + "보");
+  if (data.length) out.push("[오늘의 데이터]\n" + data.join(" / "));
+
+  var YLAB = { done:"○ 했다", part:"△ 조금", miss:"✗ 못했다" };
   var yc = (e.yesterdayCheck && e.yesterdayCheck.length === 3) ? e.yesterdayCheck : ["","",""];
-  var ytxt = "(어제 계획 없음)", yline = "";
-  if (yc.some(function(v){ return v; })) {
-    ytxt = yc.map(function(v,i){ return (i+1)+". "+(YLAB[v]||"(미점검)"); }).join(" / ");
+  if (yc.some(Boolean)) {
     var picked = yc.filter(Boolean).length;
     var done = yc.filter(function(v){ return v==="done"; }).length;
     var part = yc.filter(function(v){ return v==="part"; }).length;
-    yline = "\n어제 실행률: " + Math.round((done+part*0.5)/picked*100) + "%";
+    out.push("[어제의 빅3 점검]\n" +
+      yc.map(function(v,i){ return v ? (i+1) + ". " + YLAB[v] : ""; }).filter(Boolean).join(" / ") +
+      "\n어제 실행률: " + Math.round((done+part*0.5)/picked*100) + "%");
   }
 
-  var head = "";
-  if (withTitle) {
-    var dn = _dayName(e.date);
-    head = "웰니스 저널 100" + (e.day ? "  ·  Day " + e.day : "") + "\n" +
-           e.date + (dn ? " (" + dn + ")" : "") + "\n" +
-           "──────────────────────────────\n\n";
+  var pillarsTxt;
+  if (Array.isArray(e.picks)) {
+    pillarsTxt = "[8기둥 평가]\n" +
+      [0,1,2,3].map(function(i){ return PILLARS[i].ko + " " + sc(i); }).join(" · ") + "\n" +
+      [4,5,6,7].map(function(i){ return PILLARS[i].ko + " " + sc(i); }).join(" · ") + "\n" +
+      "8기둥 합계 " + sum + "/80 · 총점 " + entryTotal(e) + "/100";
+    var three = e.picks.map(function(id){
+      var i = Number(id.split("_")[1]);
+      var c = (e.comments && e.comments[id] || "").trim();
+      return c ? "- " + PILLARS[i].ko + " " + sc(i) + " — " + c : "";
+    }).filter(Boolean);
+    if (three.length) pillarsTxt += "\n\n[오늘의 세 기둥]\n" + three.join("\n");
+  } else {
+    // 예전 형식 기록
+    pillarsTxt = "[8기둥 평가]\n" + PILLARS.map(function(p,i){
+      var c = (e.comments && e.comments[pid(i)] || "").trim();
+      return p.ko + "(" + p.en + "): " + sc(i) + "/10" + (c ? " — " + c : "");
+    }).join("\n") + "\n\n총점: " + entryTotal(e) + "/100";
   }
+  out.push(pillarsTxt);
+
+  var g = entryGratitudes(e);
+  if (g.length) out.push("[오늘의 감사 세 가지]\n" + g.map(function(t,i){ return (i+1) + ". " + t; }).join("\n"));
+
+  if ((e.activities || "").trim()) out.push("[활동과 깨달음]\n" + e.activities.trim());
+
+  // 예전 형식 항목 (내용이 있을 때만)
+  if ((e.emotion || "").trim()) out.push("[오늘의 감정]\n" + e.emotion + (e.emotionSource ? " — 뿌리: " + e.emotionSource : ""));
+  if ((e.pauseCount || "") !== "" && Number(e.pauseCount) > 0) out.push("[오늘의 멈춤]\n" + e.pauseCount + "회" + (e.pauseNote ? " — " + e.pauseNote : ""));
+  if ((e.blankRecall || "").trim()) out.push("[백지 한 줄]\n" + e.blankRecall);
 
   var tomorrow = (e.tomorrow || []).filter(Boolean);
+  if (tomorrow.length) out.push("[내일의 빅3]\n" + tomorrow.map(function(t,i){ return (i+1) + ". " + t; }).join("\n"));
 
-  return head +
-    "날짜: "+e.date+"\n" +
-    "오늘의 주제: "+(e.theme||"(미작성)")+"\n" +
-    (e.weather ? "날씨: "+e.weather+"\n" : "") +
-    "체중: "+(e.weight||"-")+"kg / 걸음수: "+(e.steps||"-")+"보\n\n" +
-    "[어제의 세 가지 점검]\n"+ytxt+yline+"\n\n" +
-    "[8기둥 평가]\n"+lines+"\n\n총점: "+total+"/100\n\n" +
-    "[활동과 경험]\n"+(e.activities||"(미작성)")+"\n\n" +
-    "[오늘의 감정]\n"+(e.emotion||"(미작성)")+" — 뿌리: "+(e.emotionSource||"(미작성)")+"\n\n" +
-    "[오늘의 멈춤]\n"+(e.pauseCount||"0")+"회"+(e.pauseNote?" — "+e.pauseNote:"")+"\n\n" +
-    "[감사와 배움]\n"+(e.gratitude||"(미작성)")+"\n\n" +
-    "[백지 한 줄 — 보지 않고 인출한 오늘의 배움]\n"+(e.blankRecall||"(미작성)")+"\n\n" +
-    "[내일 계획]\n"+(tomorrow.length ? tomorrow.join(" / ") : "(미작성)") + "\n";
+  return out.join("\n\n") + "\n";
 }
 
 // 전체 기록을 한 편의 글로 (최근 날짜가 위로)
@@ -739,7 +916,7 @@ function buildAllText(all) {
                       .join("\n\n══════════════════════════════\n\n");
 }
 
-var AI_ASK = "아래는 저의 오늘 웰니스 8기둥 저널입니다. 점수와 코멘트, 활동 기록을 바탕으로 (1) 오늘의 강점, (2) 주의가 필요한 영역, (3) 내일을 위한 구체적이고 실천 가능한 제안 1~2가지를 따뜻하면서도 객관적으로 피드백해 주세요. 특히 [어제의 세 가지]와 [오늘의 감정], [백지 한 줄]은 저의 메타인지 훈련 기록이니, 계획과 실행의 간격, 감정의 뿌리, 배움의 정착도라는 관점에서도 함께 짚어 주세요.\n\n";
+var AI_ASK = "아래는 저의 오늘 웰니스 8기둥 저널입니다. 점수와 [오늘의 세 기둥], [활동과 깨달음]을 바탕으로 (1) 오늘의 강점, (2) 주의가 필요한 영역, (3) 내일을 위한 구체적이고 실천 가능한 제안 1~2가지를 따뜻하면서도 객관적으로 피드백해 주세요. [어제의 빅3 점검]이 있으면 계획과 실행의 간격도 함께 짚어 주세요.\n\n";
 
 function buildText() {
   return AI_ASK + entryToText(collect(), false);
@@ -769,14 +946,13 @@ function esc(s) {
 }
 function printPDF() {
   var e = collect();
-  var total = 20; for (var k in e.scores) total += e.scores[k];
-  total = Math.min(100, total);
+  var total = entryTotal(e);
 
   var rows = PILLARS.map(function(p, i) {
     var id = p.key + "_" + i;
     var col = DOMAIN[p.d];
-    var sv = e.scores[id] || 0;
-    var cm = e.comments[id] || "";
+    var sv = e.scores[id] || "–";
+    var cm = (e.picks.indexOf(id) > -1 || !current || !current.picks) ? (e.comments[id] || "") : "";
     return '<tr>' +
       '<td class="pn"><span class="bdg" style="background:' + col.base + '">' + p.abbr + '</span> ' +
         '<b style="color:' + col.text + '">' + p.ko + '</b> <span class="en">' + p.en + '</span></td>' +
@@ -802,7 +978,7 @@ function printPDF() {
       return '<div class="tm"><span class="tn" style="color:'+m.c+'">'+m.t+'</span>' +
              '<span style="color:#6b7280">어제 계획 '+(i+1)+'</span></div>';
     }).join("");
-    ysec = '<div class="sec">어제의 세 가지 <span style="font-size:11px;color:#9ca3af;font-weight:400">계획-실행 점검</span></div>' +
+    ysec = '<div class="sec">어제의 빅3 <span style="font-size:11px;color:#9ca3af;font-weight:400">계획-실행 점검</span></div>' +
       yrows +
       '<div style="margin-top:6px;font-size:13px;color:#374151">어제 실행률 <b style="color:#0f766e">'+rate+'%</b></div>';
   }
@@ -847,23 +1023,16 @@ function printPDF() {
   '<span><b>체중</b> ' + esc(e.weight || '-') + 'kg</span>' +
   '<span><b>걸음수</b> ' + esc(e.steps || '-') + '보</span>' +
 '</div>' +
-'<div class="sec">오늘의 핵심 주제</div>' +
+'<div class="sec">오늘을 한 문장으로</div>' +
 '<div class="theme">' + esc(e.theme || '(미작성)') + '</div>' +
 ysec +
 '<div class="sec">웰니스 8기둥 실천 평가</div>' +
 '<table><tbody>' + rows + '</tbody></table>' +
 '<div class="total"><div>총점 (8기둥 + 저널 작성 보너스 20)</div><div class="tb">' + total + '<span> / 100</span></div></div>' +
-'<div class="sec">활동과 경험</div><div class="box">' + esc(e.activities || '(미작성)') + '</div>' +
-'<div class="sec">오늘의 감정</div><div class="box" style="min-height:0">' +
-  '<b style="color:#1e3a8a">' + esc(e.emotion || '(미작성)') + '</b>' +
-  '<span style="color:#9ca3af"> &nbsp;←&nbsp; </span>' + esc(e.emotionSource || '(뿌리 미작성)') + '</div>' +
-'<div class="sec">오늘의 멈춤</div><div class="box" style="min-height:0">' +
-  '<b style="color:#1e3a8a">' + esc(e.pauseCount || '0') + '회</b>' +
-  (e.pauseNote ? '<span style="color:#9ca3af"> &nbsp;←&nbsp; </span>' + esc(e.pauseNote) : '') + '</div>' +
-'<div class="sec">감사와 배움</div><div class="box">' + esc(e.gratitude || '(미작성)') + '</div>' +
-'<div class="sec">백지 한 줄 <span style="font-size:11px;color:#9ca3af;font-weight:400">보지 않고 인출한 오늘의 배움</span></div>' +
-'<div class="box" style="min-height:0;border-left:3px solid #ea7a5a">' + esc(e.blankRecall || '(미작성)') + '</div>' +
-'<div class="sec">내일 계획 (빅 3)</div>' + tomo +
+(entryGratitudes(e).length ? '<div class="sec">오늘의 감사 세 가지</div>' +
+  entryGratitudes(e).map(function(t,i){ return '<div class="tm"><span class="tn">'+(i+1)+'</span>'+esc(t)+'</div>'; }).join("") : '') +
+((e.activities||'').trim() ? '<div class="sec">활동과 깨달음</div><div class="box">' + esc(e.activities) + '</div>' : '') +
+'<div class="sec">내일의 빅3</div>' + tomo +
 '<div class="foot">행복도 기술이다 · 행복의 8기둥, 웰니스</div>' +
 '</div></body></html>';
 
@@ -935,8 +1104,9 @@ async function renderStats() {
     var t = 20;
     PILLARS.forEach(function(p,i){
       var id = p.key+"_"+i;
-      var v = (e.scores && e.scores[id]!=null) ? Number(e.scores[id]) : 0;
-      sums[id] += v; counts[id]++; t += v;
+      var v = (e.scores && e.scores[id]!=null) ? Number(e.scores[id]) || 0 : 0;
+      if (v > 0) { sums[id] += v; counts[id]++; }
+      t += v;
     });
     totalSum += Math.min(100, t);
   });
@@ -1002,7 +1172,7 @@ async function renderStats() {
   $("weekSummary").innerHTML =
     '<span>작성한 날 <b style="color:#0f766e">' + entries.length + '일</b></span>' +
     '<span>평균 총점 <b style="color:#0f766e">' + avgTotal + '점</b></span>' +
-    '<span>백지 인출 <b style="color:#ea7a5a">' + recallDays + '일</b></span>';
+    (recallDays ? '<span>백지 인출 <b style="color:#ea7a5a">' + recallDays + '일</b></span>' : '');
 
   // 기둥별 평균 막대
   var bars = PILLARS.map(function(p,i){
@@ -1545,12 +1715,6 @@ function schedulePush() {
     if (!document.hidden && driveReady()) syncNow(true);
   });
 
-  // ── 코멘트 칸 접기 ──
-  $("cmToggle").onchange = async function(){
-    document.body.classList.toggle("showcm", this.checked);
-    await metaSet("showcm", this.checked);
-  };
-  if (await metaGet("showcm")) { $("cmToggle").checked = true; document.body.classList.add("showcm"); }
 
   // ── 구글 계정 연결은 설정이 끝나기 전에는 감춥니다 ──
   if (!GOOGLE_CLIENT_ID) {
@@ -1559,7 +1723,7 @@ function schedulePush() {
   }
 
   // ── 접은 칸 상태 기억 ──
-  ["moreFold","reviewFold","setFold"].forEach(async function(fid){
+  ["reviewFold","setFold"].forEach(async function(fid){
     var el = $(fid); if (!el) return;
     if (await metaGet("fold_" + fid)) el.open = true;
     el.addEventListener("toggle", function(){ metaSet("fold_" + fid, el.open); });
